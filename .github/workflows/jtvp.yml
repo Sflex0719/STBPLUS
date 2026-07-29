@@ -1,0 +1,99 @@
+name: StreamFlex JioTV+ API — Zio M3U Sync
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'   
+  workflow_dispatch:          
+
+jobs:
+  jiotvplus-api-fetch:
+    name: Fetch JioTV+ API & Export Zio.m3u
+    runs-on: ubuntu-latest
+
+    env:
+      JTVP_API_ENDPOINT: ${{ secrets.JTVP_API_ENDPOINT }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate JioTV+ API Endpoint
+        id: validate_api
+        run: |
+          if [ -z "$JTVP_API_ENDPOINT" ]; then
+            echo "::error::JTVP_API_ENDPOINT secret is not set!"
+            exit 1
+          fi
+          echo "Hitting jtv plus api ."
+
+      - name: Call JioTV+ API & Fetch M3U Playlist
+        id: jtvp_fetch
+        run: |
+          echo "📡 Connecting to JioTV+ API..."
+
+          HTTP_STATUS=$(curl -o jtvp_response.tmp -w "%{http_code}" \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            --silent \
+            --show-error \
+            "$JTVP_API_ENDPOINT")
+
+          echo "JTVP_HTTP_STATUS=$HTTP_STATUS" >> $GITHUB_ENV
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            CONTENT=$(cat jtvp_response.tmp)
+            if [ -z "$CONTENT" ]; then
+              echo "JTVP_API_SUCCESS=false" >> $GITHUB_ENV
+              echo "::warning::JioTV+ API returned empty response."
+            else
+              echo "JTVP_API_SUCCESS=true" >> $GITHUB_ENV
+              echo "✅ JioTV+ API responded successfully (HTTP $HTTP_STATUS)."
+            fi
+          else
+            echo "JTVP_API_SUCCESS=false" >> $GITHUB_ENV
+            echo "::warning::JioTV+ API returned HTTP $HTTP_STATUS."
+          fi
+
+      - name: Write Zio.m3u from JioTV+ API Response
+        run: |
+          if [ "$JTVP_API_SUCCESS" = "true" ]; then
+            cp jtvp_response.tmp Zio.m3u
+            echo "✅ Zio.m3u updated with latest JioTV+ API data."
+          else
+            echo "Api Error" > Zio.m3u
+            echo "⚠️ JioTV+ API error — Zio.m3u set to error state."
+          fi
+
+      - name: Commit & Push Zio.m3u
+        run: |
+          git config user.name  "jtvp-api-bot"
+          git config user.email "jtvp-api-bot@users.noreply.github.com"
+
+          git add Zio.m3u
+
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes detected in Zio.m3u. Skipping commit."
+          else
+            TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+            if [ "$JTVP_API_SUCCESS" = "true" ]; then
+              git commit -m "chore(jtvp-api): update Zio.m3u [$TIMESTAMP]"
+            else
+              git commit -m "chore(jtvp-api): Api Error — Zio.m3u [$TIMESTAMP]"
+            fi
+            git push
+            echo "✅ Zio.m3u pushed to repository."
+          fi
+
+      - name: JioTV+ API Sync Summary
+        run: |
+          echo "=============================="
+          echo "  StreamFlex JioTV+ API Sync Report"
+          echo "=============================="
+          echo "  HTTP Status : $JTVP_HTTP_STATUS"
+          echo "  API Success : $JTVP_API_SUCCESS"
+          echo "  Output File : Zio.m3u"
+          echo "  Next Run    : ~4 hours"
+          echo "=============================="
