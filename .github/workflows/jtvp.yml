@@ -2,8 +2,8 @@ name: StreamFlex JioTV+ API — Zio M3U Sync
 
 on:
   schedule:
-    - cron: '0 */4 * * *'   
-  workflow_dispatch:          
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   jiotvplus-api-fetch:
@@ -95,5 +95,5 @@ jobs:
           echo "  HTTP Status : $JTVP_HTTP_STATUS"
           echo "  API Success : $JTVP_API_SUCCESS"
           echo "  Output File : Zio.m3u"
-          echo "  Next Run    : ~4 hours"
+          echo "  Next Run    : ~1 hour"
           echo "=============================="
