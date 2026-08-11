@@ -2,7 +2,7 @@ name: StreamFlex JioTV Mobile API — ZioMobile M3U Sync
 
 on:
   schedule:
-    - cron: '30 */5 * * *'
+    - cron: '30 */2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
       - name: Request JioTV Mobile API & Stream M3U Data
         id: jtvm_fetch
         run: |
-          echo "🚀 Initiating JioTV Mobile API request..."
+          echo "Initiating JioTV Mobile API request..."
 
           RESPONSE_FILE="jtvm_payload.tmp"
 
@@ -111,5 +111,5 @@ jobs:
           echo "  Fetch Status : $JTVM_FETCH_STATUS"
           echo "  Payload Size : $JTVM_PAYLOAD_SIZE bytes"
           echo "  Output File  : ZioMobile.m3u"
-          echo "  Schedule     : Every 5 hours at :30"
+          echo "  Schedule     : Every 2 hours at :30"
           echo "=================================="
