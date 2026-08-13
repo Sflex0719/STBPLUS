@@ -43,8 +43,13 @@ jobs:
             --compressed \
             --silent \
             --show-error \
+            --location \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
             -H "Accept: */*" \
+            -H "Accept-Language: en-US,en;q=0.9" \
+            -H "Referer: https://streamflexsmm.in/" \
             -H "Cache-Control: no-cache" \
+            -H "Connection: keep-alive" \
             "$JTVM_API_ENDPOINT")
 
           echo "JTVM_HTTP_CODE=$HTTP_CODE" >> $GITHUB_ENV
@@ -52,6 +57,11 @@ jobs:
 
           PAYLOAD_SIZE=$(wc -c < "$RESPONSE_FILE" 2>/dev/null || echo 0)
           echo "JTVM_PAYLOAD_SIZE=$PAYLOAD_SIZE" >> $GITHUB_ENV
+
+          echo "--- Debug: HTTP Code = $HTTP_CODE ---"
+          echo "--- Debug: Payload Size = $PAYLOAD_SIZE bytes ---"
+          echo "--- Debug: Response Preview ---"
+          head -5 "$RESPONSE_FILE" || echo "(empty)"
 
           if [ "$HTTP_CODE" -eq 200 ] && [ "$PAYLOAD_SIZE" -gt 0 ]; then
             echo "JTVM_FETCH_STATUS=success" >> $GITHUB_ENV
