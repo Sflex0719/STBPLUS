@@ -26,7 +26,7 @@ jobs:
             echo "::error::JTVP_API_ENDPOINT secret is not set!"
             exit 1
           fi
-          echo "Hitting jtv plus api ."
+          echo "Hitting JioTV+ API..."
 
       - name: Call JioTV+ API & Fetch M3U Playlist
         id: jtvp_fetch
@@ -39,9 +39,19 @@ jobs:
             --retry-delay 5 \
             --silent \
             --show-error \
+            --location \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+            -H "Accept: */*" \
+            -H "Accept-Language: en-US,en;q=0.9" \
+            -H "Referer: https://streamflexsmm.in/" \
+            -H "Connection: keep-alive" \
             "$JTVP_API_ENDPOINT")
 
           echo "JTVP_HTTP_STATUS=$HTTP_STATUS" >> $GITHUB_ENV
+
+          echo "--- Debug: HTTP Status = $HTTP_STATUS ---"
+          echo "--- Debug: Response Preview ---"
+          head -5 jtvp_response.tmp || echo "(empty)"
 
           if [ "$HTTP_STATUS" -eq 200 ]; then
             CONTENT=$(cat jtvp_response.tmp)
