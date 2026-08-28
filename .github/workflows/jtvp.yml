@@ -26,7 +26,7 @@ jobs:
             echo "::error::JTVP_API_ENDPOINT secret is not set!"
             exit 1
           fi
-          echo "Hitting JioTV+ API..."
+          echo "✅ Endpoint validated."
 
       - name: Call JioTV+ API & Fetch M3U Playlist
         id: jtvp_fetch
@@ -49,32 +49,37 @@ jobs:
 
           echo "JTVP_HTTP_STATUS=$HTTP_STATUS" >> $GITHUB_ENV
 
-          echo "--- Debug: HTTP Status = $HTTP_STATUS ---"
-          echo "--- Debug: Response Preview ---"
+          echo "--- HTTP Status: $HTTP_STATUS ---"
           head -5 jtvp_response.tmp || echo "(empty)"
 
           if [ "$HTTP_STATUS" -eq 200 ]; then
             CONTENT=$(cat jtvp_response.tmp)
             if [ -z "$CONTENT" ]; then
               echo "JTVP_API_SUCCESS=false" >> $GITHUB_ENV
-              echo "::warning::JioTV+ API returned empty response."
+              echo "::warning::Empty response from JioTV+ API."
             else
               echo "JTVP_API_SUCCESS=true" >> $GITHUB_ENV
-              echo "✅ JioTV+ API responded successfully (HTTP $HTTP_STATUS)."
+              echo "✅ API success (HTTP $HTTP_STATUS)."
             fi
           else
             echo "JTVP_API_SUCCESS=false" >> $GITHUB_ENV
-            echo "::warning::JioTV+ API returned HTTP $HTTP_STATUS."
+            echo "::warning::API returned HTTP $HTTP_STATUS."
           fi
 
       - name: Write Zio.m3u from JioTV+ API Response
         run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
           if [ "$JTVP_API_SUCCESS" = "true" ]; then
-            cp jtvp_response.tmp Zio.m3u
-            echo "✅ Zio.m3u updated with latest JioTV+ API data."
+            # Force unique content — inject timestamp as M3U comment at top
+            echo "#EXTM3U url-tvg=\"\" refresh=\"$TIMESTAMP\"" > Zio.m3u
+            # Strip existing #EXTM3U line from response if present, append rest
+            grep -v "^#EXTM3U" jtvp_response.tmp >> Zio.m3u
+            echo "✅ Zio.m3u updated [$TIMESTAMP]"
           else
-            echo "Api Error" > Zio.m3u
-            echo "⚠️ JioTV+ API error — Zio.m3u set to error state."
+            echo "#EXTM3U" > Zio.m3u
+            echo "# Api Error — $TIMESTAMP" >> Zio.m3u
+            echo "⚠️ API error — Zio.m3u set to error state."
           fi
 
       - name: Commit & Push Zio.m3u
@@ -84,18 +89,16 @@ jobs:
 
           git add Zio.m3u
 
-          if git diff --cached --quiet; then
-            echo "ℹ️ No changes detected in Zio.m3u. Skipping commit."
+          # Always commit — timestamp injection guarantees diff exists
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+          if [ "$JTVP_API_SUCCESS" = "true" ]; then
+            git commit -m "chore(jtvp-api): update Zio.m3u [$TIMESTAMP]"
           else
-            TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
-            if [ "$JTVP_API_SUCCESS" = "true" ]; then
-              git commit -m "chore(jtvp-api): update Zio.m3u [$TIMESTAMP]"
-            else
-              git commit -m "chore(jtvp-api): Api Error — Zio.m3u [$TIMESTAMP]"
-            fi
-            git push
-            echo "✅ Zio.m3u pushed to repository."
+            git commit -m "chore(jtvp-api): Api Error — Zio.m3u [$TIMESTAMP]"
           fi
+
+          git push
+          echo "✅ Zio.m3u pushed."
 
       - name: JioTV+ API Sync Summary
         run: |
